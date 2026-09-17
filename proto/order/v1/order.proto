@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package order.v1;
+
+option go_package = "golangFoodService/proto/gen/order/v1;orderv1";
+
+service OrderService {
+  rpc CreateOrder(CreateOrderRequest) returns (Order);
+  rpc GetOrder(GetOrderRequest) returns (Order);
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+}
+
+message CreateOrderRequest {
+  string customer_id = 1;
+  string restaurant_id = 2;
+  string idempotency_key = 3;
+  repeated LineItemInput items = 4;
+}
+
+message LineItemInput {
+  string item_id = 1;
+  int32 qty = 2;
+}
+
+message GetOrderRequest {
+  string id = 1;
+  string customer_id = 2;
+}
+
+message ListOrdersRequest {
+  string customer_id = 1;
+}
+
+message ListOrdersResponse {
+  repeated Order items = 1;
+}
+
+message Order {
+  string id = 1;
+  string customer_id = 2;
+  string restaurant_id = 3;
+  string restaurant_name = 4;
+  string status = 5;
+  int64 total_minor = 6;
+  string courier_id = 7;
+  string payment_id = 8;
+  repeated LineItem items = 9;
+  string created_at = 10;
+  string updated_at = 11;
+}
+
+message LineItem {
+  string item_id = 1;
+  string name = 2;
+  int64 unit_price_minor = 3;
+  int32 qty = 4;
+}

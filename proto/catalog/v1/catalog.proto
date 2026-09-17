@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package catalog.v1;
+
+option go_package = "golangFoodService/proto/gen/catalog/v1;catalogv1";
+
+service CatalogService {
+  rpc ListRestaurants(ListRestaurantsRequest) returns (ListRestaurantsResponse);
+  rpc GetRestaurant(GetRestaurantRequest) returns (Restaurant);
+  rpc GetItems(GetItemsRequest) returns (GetItemsResponse);
+}
+
+message ListRestaurantsRequest {}
+
+message ListRestaurantsResponse {
+  repeated Restaurant items = 1;
+}
+
+message GetRestaurantRequest {
+  string id = 1;
+}
+
+message GetItemsRequest {
+  repeated string ids = 1;
+}
+
+message GetItemsResponse {
+  repeated MenuItem items = 1;
+}
+
+message Restaurant {
+  string id = 1;
+  string name = 2;
+  string cuisine = 3;
+  string address = 4;
+  bool is_open = 5;
+  int64 min_order_minor = 6;
+  int32 prep_minutes = 7;
+  repeated MenuCategory menu = 8;
+}
+
+message MenuCategory {
+  string id = 1;
+  string name = 2;
+  repeated MenuItem items = 3;
+}
+
+message MenuItem {
+  string id = 1;
+  string restaurant_id = 2;
+  string name = 3;
+  string description = 4;
+  int64 price_minor = 5;
+  repeated string allergens = 6;
+  bool available = 7;
+}
