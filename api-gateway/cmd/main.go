@@ -11,12 +11,18 @@ import (
 	"time"
 
 	"github.com/food-service/api-gateway/internal/config"
+	"github.com/food-service/api-gateway/internal/middlewares/auth"
+	"github.com/food-service/api-gateway/internal/middlewares/auth/interfaces"
 )
 
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
+		_, err := fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
+		if err != nil {
+			fmt.Printf("Failed to load config: %v\n", err)
+		}
+
 		os.Exit(1)
 	}
 
@@ -38,12 +44,22 @@ func main() {
 		Level: logLevel,
 	}))
 
-	r := router.Setup(cfg, logger)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	// Создание HTTP сервера
+	var authInterface interfaces.IAuthenticator
+
+	authInstance, err := auth.NewAuthenticator(ctx, cfg.Auth)
+	if err != nil {
+		logger.Error("failed to create authenticator: %v", err)
+	}
+
+	authInterface = authInstance
+	_ = authInterface
+
 	srv := &http.Server{
-		Addr:         ":" + cfg.Server.Port,
-		Handler:      r,
+		Addr: ":" + cfg.Server.Port,
+		//Handler:      r,
 		ReadTimeout:  time.Duration(cfg.Server.ReadTimeout) * time.Second,
 		WriteTimeout: time.Duration(cfg.Server.WriteTimeout) * time.Second,
 	}

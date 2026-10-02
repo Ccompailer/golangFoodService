@@ -5,9 +5,11 @@ server:
   write_timeout: 10
 
 auth:
-  jwt_secret: "test-key"
-  access_token_ttl: 3600
-  refresh_token_ttl: 604800
+  jwks_url: "https://my-service/auth.internal.com"
+  issuer: "https://my-service/auth.internal.com"
+  audience: "api-gateway"
+  skew: 30
+  refresh_min: 5
 
 redis:
   host: "localhost"

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -24,9 +25,11 @@ type ServerConfig struct {
 }
 
 type AuthConfig struct {
-	SecretKey       string `mapstructure:"secret_key"`
-	AccessTokenTTL  int    `mapstructure:"access_token_ttl"`
-	RefreshTokenTTL int    `mapstructure:"refresh_token_ttl"`
+	JWKSURL    string        `mapstructure:"jwks_url"`
+	Issuer     string        `mapstructure:"issuer"`
+	Audience   string        `mapstructure:"audience"`
+	Skew       time.Duration `mapstructure:"skew"`
+	RefreshMin time.Duration `mapstructure:"refresh_min"`
 }
 
 type RedisConfig struct {
