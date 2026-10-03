@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/food-service/api-gateway/internal/config"
+	"github.com/gin-gonic/gin"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -44,20 +44,20 @@ func ForwardIdentityInterceptor() grpc.UnaryClientInterceptor {
 	}
 }
 
-func RequireRole(roles ...string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			c, ok := ClaimsFromContext(r.Context())
+func RequireRole(roles ...string) func() gin.HandlerFunc {
+	return func() gin.HandlerFunc {
+		return func(c *gin.Context) {
+			claims, ok := ClaimsFromContext(c.Request.Context())
 			if !ok {
-				writeAuthError(w, http.StatusUnauthorized, "unauthenticated", "authentication required")
+				writeAuthError(c, http.StatusUnauthorized, "unauthenticated", "authentication required")
 				return
 			}
-			if slices.ContainsFunc(roles, c.HasRole) {
-				next.ServeHTTP(w, r)
+			if slices.ContainsFunc(roles, claims.HasRole) {
+				c.Next()
 				return
 			}
-			writeAuthError(w, http.StatusForbidden, "forbidden", "insufficient permissions")
-		})
+			writeAuthError(c, http.StatusForbidden, "forbidden", "insufficient permissions")
+		}
 	}
 }
 
@@ -83,23 +83,24 @@ func NewAuthenticator(ctx context.Context, cfg config.AuthConfig) (*Authenticato
 	}, nil
 }
 
-func (a Authenticator) Authenticate(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		raw, err := bearerToken(r)
+func (a Authenticator) Authenticate() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		raw, err := bearerToken(c.Request)
 		if err != nil {
-			writeAuthError(w, http.StatusUnauthorized, "missing_token", err.Error())
+			writeAuthError(c, http.StatusUnauthorized, "missing_token", err.Error())
 			return
 		}
 
 		claims, err := a.verify(raw)
 		if err != nil {
-			writeAuthError(w, http.StatusUnauthorized, "invalid_token", "token is invalid or expired")
+			writeAuthError(c, http.StatusUnauthorized, "invalid_token", "token is invalid or expired")
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), ctxKey{}, claims)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+		ctx := context.WithValue(c.Request.Context(), ctxKey{}, claims)
+		c.Request = c.Request.WithContext(ctx)
+		c.Next()
+	}
 }
 
 func (a Authenticator) verify(raw string) (*Claims, error) {
@@ -165,13 +166,12 @@ func extractRoles(tok jwt.Token) []string {
 	return nil
 }
 
-func writeAuthError(w http.ResponseWriter, status int, code, msg string) {
-	w.Header().Set("Content-Type", "application/json")
+func writeAuthError(c *gin.Context, status int, code, msg string) {
 	if status == http.StatusUnauthorized {
-		w.Header().Set("WWW-Authenticate", `Bearer realm="api"`)
+		c.Header("WWW-Authenticate", `Bearer realm="api"`)
 	}
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"error": map[string]string{"code": code, "message": msg},
+
+	c.AbortWithStatusJSON(status, gin.H{
+		"error": gin.H{"code": code, "message": msg},
 	})
 }
